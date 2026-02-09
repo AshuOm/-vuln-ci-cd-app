@@ -1,0 +1,34 @@
+name: DevSecOps CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Trivy
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y wget
+        wget https://github.com/aquasecurity/trivy/releases/latest/download/trivy_0.50.1_Linux-64bit.deb
+        sudo dpkg -i trivy_0.50.1_Linux-64bit.deb
+
+    - name: Dependency Vulnerability Scan (SCA)
+      run: |
+        trivy fs --exit-code 0 --severity LOW,MEDIUM .
+        trivy fs --exit-code 1 --severity HIGH,CRITICAL .
+
+    - name: Build Docker Image
+      run: |
+        docker build -t vuln-app .
+
+    - name: Docker Image Vulnerability Scan
+      run: |
+        trivy image --exit-code 1 --severity HIGH,CRITICAL vuln-app
