@@ -1,4 +1,4 @@
-name: DevSecOps CI/CD Pipeline
+name: DevSecOps CI/CD Security Pipeline
 
 on:
   push:
@@ -10,25 +10,40 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
+    # 1️⃣ Checkout Source Code
+    - name: Checkout source code
       uses: actions/checkout@v4
 
+    # 2️⃣ Install Docker (already present, but ensured)
+    - name: Verify Docker
+      run: docker --version
+
+    # 3️⃣ Install Trivy (OFFICIAL & STABLE METHOD)
     - name: Install Trivy
       run: |
         sudo apt-get update
-        sudo apt-get install -y wget
-        wget https://github.com/aquasecurity/trivy/releases/latest/download/trivy_0.50.1_Linux-64bit.deb
-        sudo dpkg -i trivy_0.50.1_Linux-64bit.deb
+        sudo apt-get install -y apt-transport-https gnupg lsb-release curl
+        curl -fsSL https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo gpg --dearmor -o /usr/share/keyrings/trivy.gpg
+        echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/trivy.list
+        sudo apt-get update
+        sudo apt-get install -y trivy
 
-    - name: Dependency Vulnerability Scan (SCA)
+    # 4️⃣ Dependency Vulnerability Scan (SCA)
+    - name: Dependency Vulnerability Scan
       run: |
+        echo "Running dependency scan (LOW & MEDIUM allowed)"
         trivy fs --exit-code 0 --severity LOW,MEDIUM .
+
+        echo "Failing build on HIGH & CRITICAL vulnerabilities"
         trivy fs --exit-code 1 --severity HIGH,CRITICAL .
 
+    # 5️⃣ Build Docker Image
     - name: Build Docker Image
       run: |
         docker build -t vuln-app .
 
+    # 6️⃣ Docker Image Vulnerability Scan (SECURITY GATE)
     - name: Docker Image Vulnerability Scan
       run: |
+        echo "Scanning Docker image for HIGH & CRITICAL vulnerabilities"
         trivy image --exit-code 1 --severity HIGH,CRITICAL vuln-app
