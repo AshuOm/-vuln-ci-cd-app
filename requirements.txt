@@ -1,5 +1,6 @@
-flask==1.0
-requests==2.19.1
+flask>=2.2.5
+requests>=2.31.0
 jinja2<3.0
 markupsafe<2.0
 itsdangerous<2.0
+
