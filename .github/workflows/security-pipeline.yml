@@ -10,15 +10,23 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # 1️⃣ Checkout Source Code
+    # 1️⃣ Checkout repository
     - name: Checkout source code
       uses: actions/checkout@v4
 
-    # 2️⃣ Install Docker (already present, but ensured)
-    - name: Verify Docker
+    # 2️⃣ Show workspace contents (DEBUG – IMPORTANT)
+    - name: Verify workspace files
+      run: |
+        echo "Current directory:"
+        pwd
+        echo "Listing files:"
+        ls -la
+
+    # 3️⃣ Verify Docker
+    - name: Verify Docker installation
       run: docker --version
 
-    # 3️⃣ Install Trivy (OFFICIAL & STABLE METHOD)
+    # 4️⃣ Install Trivy (OFFICIAL & STABLE METHOD)
     - name: Install Trivy
       run: |
         sudo apt-get update
@@ -28,21 +36,24 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y trivy
 
-    # 4️⃣ Dependency Vulnerability Scan (SCA)
+    # 5️⃣ Dependency Vulnerability Scan (SCA)
     - name: Dependency Vulnerability Scan
       run: |
         echo "Running dependency scan (LOW & MEDIUM allowed)"
-        trivy fs --exit-code 0 --severity LOW,MEDIUM .
+        trivy fs --exit-code 0 --severity LOW,MEDIUM $GITHUB_WORKSPACE
 
         echo "Failing build on HIGH & CRITICAL vulnerabilities"
-        trivy fs --exit-code 1 --severity HIGH,CRITICAL .
+        trivy fs --exit-code 1 --severity HIGH,CRITICAL $GITHUB_WORKSPACE
 
-    # 5️⃣ Build Docker Image
+    # 6️⃣ Build Docker Image (EXPLICIT DOCKERFILE PATH – FIXED)
     - name: Build Docker Image
       run: |
-        docker build -t vuln-app .
+        echo "Building Docker image using explicit Dockerfile path"
+        docker build -t vuln-app \
+          -f $GITHUB_WORKSPACE/Dockerfile \
+          $GITHUB_WORKSPACE
 
-    # 6️⃣ Docker Image Vulnerability Scan (SECURITY GATE)
+    # 7️⃣ Docker Image Vulnerability Scan (SECURITY GATE)
     - name: Docker Image Vulnerability Scan
       run: |
         echo "Scanning Docker image for HIGH & CRITICAL vulnerabilities"
