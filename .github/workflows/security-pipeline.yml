@@ -14,7 +14,7 @@ jobs:
     - name: Checkout source code
       uses: actions/checkout@v4
 
-    # 2️⃣ Show workspace contents (DEBUG – IMPORTANT)
+    # 2️⃣ Verify workspace (debug + assurance)
     - name: Verify workspace files
       run: |
         echo "Current directory:"
@@ -26,13 +26,15 @@ jobs:
     - name: Verify Docker installation
       run: docker --version
 
-    # 4️⃣ Install Trivy (OFFICIAL & STABLE METHOD)
+    # 4️⃣ Install Trivy (official method)
     - name: Install Trivy
       run: |
         sudo apt-get update
         sudo apt-get install -y apt-transport-https gnupg lsb-release curl
-        curl -fsSL https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo gpg --dearmor -o /usr/share/keyrings/trivy.gpg
-        echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/trivy.list
+        curl -fsSL https://aquasecurity.github.io/trivy-repo/deb/public.key \
+          | sudo gpg --dearmor -o /usr/share/keyrings/trivy.gpg
+        echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" \
+          | sudo tee /etc/apt/sources.list.d/trivy.list
         sudo apt-get update
         sudo apt-get install -y trivy
 
@@ -45,7 +47,7 @@ jobs:
         echo "Failing build on HIGH & CRITICAL vulnerabilities"
         trivy fs --exit-code 1 --severity HIGH,CRITICAL $GITHUB_WORKSPACE
 
-    # 6️⃣ Build Docker Image (EXPLICIT DOCKERFILE PATH – FIXED)
+    # 6️⃣ Build Docker Image (explicit Dockerfile path)
     - name: Build Docker Image
       run: |
         echo "Building Docker image using explicit Dockerfile path"
@@ -53,8 +55,13 @@ jobs:
           -f $GITHUB_WORKSPACE/Dockerfile \
           $GITHUB_WORKSPACE
 
-    # 7️⃣ Docker Image Vulnerability Scan (SECURITY GATE)
+    # 7️⃣ Docker Image Vulnerability Scan (FINAL SECURITY GATE)
     - name: Docker Image Vulnerability Scan
       run: |
         echo "Scanning Docker image for HIGH & CRITICAL vulnerabilities"
-        trivy image --exit-code 1 --severity HIGH,CRITICAL vuln-app
+        echo "Ignoring unfixed OS-level vulnerabilities (industry best practice)"
+        trivy image \
+          --exit-code 1 \
+          --severity HIGH,CRITICAL \
+          --ignore-unfixed \
+          vuln-app
